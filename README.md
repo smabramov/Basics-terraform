@@ -40,12 +40,97 @@
 - скриншот консоли, curl должен отобразить тот же внешний ip-адрес;
 - ответы на вопросы.
 
+### Решение
+
+1. Изучил проект.
+
+2. Создал сервисный аккаунт и ключ. 
+
+Ключ можно создать командой:
+
+```
+yc iam key create --service-account-name serg --output key.json
+
+```
+3. Сгенерировал новый ssh-ключ командой ssh-keygen -t ed25519, записал его *.pub часть в переменную vms_ssh_root_key.
+
+4. Инициализировал проект и запустив его обнаружил следующие опечатки:
+
+- строка  platform_id = "standart-v4" -правильно standard
+- есть только v1,v2,v3 [https://yandex.cloud/ru/docs/compute/concepts/vm-platforms]
+- cores = 1 - платформа не дает установить такое количество ядер, минимум 2 и далее кратное двум.
+
+5. Ход выполнения.
+
+!(1)[]
+
+!(2)[]
+
+!(3)[]
+
+6. Параметры preemptible = true - это прерываемая ВМ, т.е. работает не более 24 часов, после будет остановлена. Параметр core_fraction = 5 - указывает базовую производительность ядра в процентах. Указывается для экономии ресурсов.
+
 
 ### Задание 2
 
 1. Замените все хардкод-**значения** для ресурсов **yandex_compute_image** и **yandex_compute_instance** на **отдельные** переменные. К названиям переменных ВМ добавьте в начало префикс **vm_web_** .  Пример: **vm_web_name**.
 2. Объявите нужные переменные в файле variables.tf, обязательно указывайте тип переменной. Заполните их **default** прежними значениями из main.tf. 
 3. Проверьте terraform plan. Изменений быть не должно. 
+
+### Решение
+
+1. Изменения в main.tf
+
+```
+data "yandex_compute_image" "ubuntu" {
+  family = var.vm_web_image                        #"ubuntu-2004-lts"
+}
+resource "yandex_compute_instance" "platform" {
+  name        = var.vm_web_name                    #"netology-develop-platform-web"
+  platform_id = var.vm_web_platform_id             #"standard-v1"
+  resources {
+    cores         = var.vm_web_cores               #2
+    memory        = var.vm_web_memory              #1
+    core_fraction = var.vm_web_fract               #5
+
+``` 
+2. Добавление в variables.tf
+
+```
+variable "vm_web_name" {
+  type = string
+  default = "netology-develop-platform-web"
+  }
+
+variable "vm_web_image" {
+  type = string
+  default = "ubuntu-2004-lts"
+}
+
+variable "vm_web_platform_id" {
+  type = string
+  default = "standard-v1"
+  }
+
+variable "vm_web_cores" {
+  type = number
+  default = 2
+  }
+
+variable "vm_web_memory" {
+    type = number
+    default = 1  
+  }
+
+variable "vm_web_fract" {
+    type = number
+    default = 5
+  }
+
+```
+3. terraform plan
+
+!(4)[]
 
 
 ### Задание 3
@@ -54,6 +139,167 @@
 2. Скопируйте блок ресурса и создайте с его помощью вторую ВМ в файле main.tf: **"netology-develop-platform-db"** ,  ```cores  = 2, memory = 2, core_fraction = 20```. Объявите её переменные с префиксом **vm_db_** в том же файле ('vms_platform.tf').  ВМ должна работать в зоне "ru-central1-b"
 3. Примените изменения.
 
+### Решение
+
+!(5)[]
+
+!(6)[]
+
+main.tf
+
+```
+
+resource "yandex_vpc_network" "develop" {
+  name = var.vpc_name
+}
+resource "yandex_vpc_subnet" "develop" {
+  name           = var.vpc_name
+  zone           = var.default_zone
+  network_id     = yandex_vpc_network.develop.id
+  v4_cidr_blocks = var.default_cidr
+}
+resource "yandex_vpc_subnet" "develop2" {
+  name           = var.vm_db_vpc_name
+  zone           = var.vm_db_zone
+  network_id     = yandex_vpc_network.develop.id
+  v4_cidr_blocks = var.vm_db_cidr
+}
+
+
+
+data "yandex_compute_image" "ubuntu" {
+  family = var.vm_web_image 
+}
+resource "yandex_compute_instance" "platform" {
+  name        = var.vm_web_name 
+  platform_id = var.vm_web_platform_id
+  resources {
+    cores         = var.vm_web_cores
+    memory        = var.vm_web_memory
+    core_fraction = var.vm_web_fract
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = var.vm_web_prmt
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.develop.id
+    nat       = var.vm_web_nat
+  }
+
+  metadata = {
+    serial-port-enable = var.vm_web_sp
+    ssh-keys           = "ubuntu:${var.vms_ssh_root_key}"
+  }
+
+}
+###netology-develop-platform-db
+resource "yandex_compute_instance" "platform2" {
+  name        = var.vm_db_name 
+  platform_id = var.vm_db_platform_id
+  zone           = var.vm_db_zone
+
+  resources {
+    cores         = var.vm_db_cores
+    memory        = var.vm_db_memory
+    core_fraction = var.vm_db_fract
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = var.vm_db_prmt
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.develop2.id
+    nat       = var.vm_db_nat
+  }
+
+  metadata = {
+    serial-port-enable = var.vm_db_sp
+    ssh-keys           = "ubuntu:${var.vms_ssh_root_key}"
+  }
+
+}
+
+```
+vms_platform.tf
+
+```
+
+###cloud vars
+
+variable "vm_db_zone" {
+  type        = string
+  default     = "ru-central1-b"
+  description = "https://cloud.yandex.ru/docs/overview/concepts/geo-scope"
+}
+
+variable "vm_db_vpc_name" {
+  type        = string
+  default     = "develop2"
+  description = "VPC network & subnet name"
+}
+
+variable "vm_db_cidr" {
+  type        = list(string)
+  default     = ["10.0.0.0/24"]
+  description = "https://cloud.yandex.ru/docs/vpc/operations/subnet-create"
+}
+
+variable "vm_db_name" {
+  type = string
+  default = "netology-develop-platform-db"
+  }
+
+variable "vm_db_image" {
+  type = string
+  default = "ubuntu-2004-lts"
+}
+
+variable "vm_db_platform_id" {
+  type = string
+  default = "standard-v1"
+  }
+
+variable "vm_db_cores" {
+  type = number
+  default = 2
+  }
+
+variable "vm_db_memory" {
+    type = number
+    default = 2 
+  }
+
+variable "vm_db_fract" {
+    type = number
+    default = 20
+  }
+
+variable "vm_db_prmt" {
+  type = bool
+  default = true
+  }
+
+variable "vm_db_nat" {
+  type = bool
+  default = true
+  }
+
+
+variable "vm_db_sp" {
+  type = bool
+  default = true
+  }
+
+  ```
 
 ### Задание 4
 
@@ -62,6 +308,10 @@
 
 В качестве решения приложите вывод значений ip-адресов команды ```terraform output```.
 
+### Решение
+
+!(7)[]
+
 
 ### Задание 5
 
@@ -69,8 +319,42 @@
 2. Замените переменные внутри ресурса ВМ на созданные вами local-переменные.
 3. Примените изменения.
 
+### Решение
+
+Фаил (locals.tf)[] и (variables.tf)[]
+
+```
+locals {
+  platform  = "${ var.name }-${ var.env }-${ var.project }-${ var.role[0] }"
+  platform2 = "${ var.name }-${ var.env }-${ var.project }-${ var.role[1] }"
+}
+
+```
+###local
+
+variable "name" {
+  default     = "netology"
+}
+
+variable "env" {
+  default     = "develop"
+}
+
+variable "project" {
+  default     = "platform"
+}
+
+variable "role" {
+   default = ["platform", "platform2"]
+}
+
+```
+
+```
 
 ### Задание 6
+
+
 
 1. Вместо использования трёх переменных  ".._cores",".._memory",".._core_fraction" в блоке  resources {...}, объедините их в единую map-переменную **vms_resources** и  внутри неё конфиги обеих ВМ в виде вложенного map(object).  
    ```
@@ -106,8 +390,146 @@
 5. Найдите и закоментируйте все, более не используемые переменные проекта.
 6. Проверьте terraform plan. Изменений быть не должно.
 
+### Решение
+
+Файл (vms_platform.tf)[]
+
+```
+ariable "vms_resources" {
+  type = map(object({
+    cores = number
+    memory = number
+    core_fraction = number
+  }))
+  default = {
+    vm_web_resources = {
+      cores         = 2
+      memory        = 1
+      core_fraction = 5
+    }
+    vm_db_resources = {
+      cores         = 2
+      memory        = 2
+      core_fraction = 20
+    }
+  }
+}
+
+variable "vms_metadata" {
+  type = map
+  default = {
+    serial-port-enable = 1
+    ssh-keys = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGxDA6ZQM1u1nDL0NqZz/rgrzGd5zbrbWKV3xuFp29zL serg@ubuntu"
+  }
+}
+
+```
+
+Файл (main.tf)[]
+
+```
+resource "yandex_vpc_network" "develop" {
+  name = var.vpc_name
+}
+resource "yandex_vpc_subnet" "develop" {
+  name           = var.vpc_name
+  zone           = var.default_zone
+  network_id     = yandex_vpc_network.develop.id
+  v4_cidr_blocks = var.default_cidr
+}
+resource "yandex_vpc_subnet" "develop2" {
+  name           = var.vm_db_vpc_name
+  zone           = var.vm_db_zone
+  network_id     = yandex_vpc_network.develop.id
+  v4_cidr_blocks = var.vm_db_cidr
+}
+
+
+
+data "yandex_compute_image" "ubuntu" {
+  family = var.vm_web_image 
+}
+resource "yandex_compute_instance" "platform" {
+  #name        = var.vm_web_name
+  name            = local.platform
+  platform_id     = var.vm_web_platform_id
+  resources {
+    cores         = var.vms_resources["vm_web_resources"]["cores"]
+    memory        = var.vms_resources["vm_web_resources"]["memory"]
+    core_fraction = var.vms_resources["vm_web_resources"]["core_fraction"]
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = var.vm_web_prmt
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.develop.id
+    nat       = var.vm_web_nat
+  }
+
+  metadata = {
+    serial-port-enable = var.vms_metadata["serial-port-enable"]
+    ssh-keys           = var.vms_metadata["ssh-keys"]
+  }
+
+}
+###netology-develop-platform-db
+resource "yandex_compute_instance" "platform2" {
+  #name        = var.vm_db_name
+  name           = local.platform2
+  platform_id    = var.vm_db_platform_id
+  zone           = var.vm_db_zone
+
+  resources {
+    cores         = var.vms_resources["vm_db_resources"]["cores"]
+    memory        = var.vms_resources["vm_db_resources"]["memory"]
+    core_fraction = var.vms_resources["vm_db_resources"]["core_fraction"]
+  }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu.image_id
+    }
+  }
+  scheduling_policy {
+    preemptible = var.vm_db_prmt
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.develop2.id
+    nat       = var.vm_db_nat
+  }
+
+  metadata = {
+    serial-port-enable = var.vms_metadata["serial-port-enable"]
+    ssh-keys           = var.vms_metadata["ssh-keys"]
+  }
+
+}
+
+```
+
+
 ------
 
+terraform plan
+
+```
+
+data.yandex_compute_image.ubuntu: Reading...
+yandex_vpc_network.develop: Refreshing state... [id=enpt9e7o3rjp2r9eobs7]
+data.yandex_compute_image.ubuntu: Read complete after 2s [id=fd8dfofgv8k45mqv25nq]
+yandex_vpc_subnet.develop: Refreshing state... [id=e9b87o9f1j4gq6vhl36d]
+yandex_compute_instance.db: Refreshing state... [id=fhm0acsfkhn0jhrvtf87]
+yandex_compute_instance.web: Refreshing state... [id=fhmoe74jg3ahhp53g8rn]
+
+No changes. Your infrastructure matches the configuration.
+
+
+
+```
 ## Дополнительное задание (со звёздочкой*)
 
 **Настоятельно рекомендуем выполнять все задания со звёздочкой.**   
