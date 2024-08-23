@@ -62,11 +62,11 @@ yc iam key create --service-account-name serg --output key.json
 
 5. Ход выполнения.
 
-!(1)[]
+!(1)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/jpeg/1.png]
 
-!(2)[]
+!(2)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/jpeg/2.png]
 
-!(3)[]
+!(3)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/jpeg/3.png]
 
 6. Параметры preemptible = true - это прерываемая ВМ, т.е. работает не более 24 часов, после будет остановлена. Параметр core_fraction = 5 - указывает базовую производительность ядра в процентах. Указывается для экономии ресурсов.
 
@@ -130,7 +130,7 @@ variable "vm_web_fract" {
 ```
 3. terraform plan
 
-!(4)[]
+!(4)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/jpeg/4.png]
 
 
 ### Задание 3
@@ -141,9 +141,9 @@ variable "vm_web_fract" {
 
 ### Решение
 
-!(5)[]
+!(5)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/jpeg/5.png]
 
-!(6)[]
+!(6)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/jpeg/6.png]
 
 main.tf
 
@@ -310,7 +310,7 @@ variable "vm_db_sp" {
 
 ### Решение
 
-!(7)[]
+!(7)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/jpeg/7.png]
 
 
 ### Задание 5
@@ -321,7 +321,7 @@ variable "vm_db_sp" {
 
 ### Решение
 
-Фаил (locals.tf)[] и (variables.tf)[]
+Фаил (locals.tf)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/locals.tf] и (variables.tf)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/variables.tf]
 
 ```
 locals {
@@ -392,7 +392,7 @@ variable "role" {
 
 ### Решение
 
-Файл (vms_platform.tf)[]
+Файл (vms_platform.tf)[https://github.com/smabramov/Basics-terraform/blob/ea0dc0c13e74507be2af650213194da5032360f4/vms_platform.tf]
 
 ```
 ariable "vms_resources" {
@@ -425,7 +425,7 @@ variable "vms_metadata" {
 
 ```
 
-Файл (main.tf)[]
+Файл (main.tf)[https://github.com/smabramov/Basics-terraform/blob/main/main.tf]
 
 ```
 resource "yandex_vpc_network" "develop" {
